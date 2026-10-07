@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نظام مخازن البلدية (نسخة بسيطة)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="login-screen" class="login-wrap">
+  <div class="login-card">
+    <div class="logo">🏛️</div>
+    <h1>نظام مخازن البلدية</h1>
+    <p class="muted">نسخة بسيطة — تعمل بدون إنترنت أو سيرفر</p>
+    <div class="field"><label>اسم المستخدم</label><input id="username" placeholder="admin"></div>
+    <div class="field"><label>كلمة المرور</label><input id="password" type="password" placeholder="••••••"></div>
+    <button class="btn primary full" onclick="login()">تسجيل الدخول</button>
+    <p id="login-error" class="error"></p>
+    <div class="demo">مدير: <b>admin / admin123</b><br>موظف: <b>storekeeper / store123</b></div>
+  </div>
+</div>
+
+
+<div id="app" class="hidden">
+  <aside class="sidebar">
+    <div class="brand">🏛️ مخازن البلدية</div>
+    <div id="user-info" class="user-info"></div>
+    <nav id="nav">
+      <button data-page="dashboard" class="active" onclick="showPage('dashboard')">📊 الرئيسية</button>
+      <button data-page="materials" onclick="showPage('materials')">📦 المواد</button>
+      <button data-page="warehouses" onclick="showPage('warehouses')">🏬 المخازن</button>
+      <button data-page="in" onclick="showPage('in')">➕ إدخال</button>
+      <button data-page="out" onclick="showPage('out')">➖ إخراج</button>
+      <button data-page="movements" onclick="showPage('movements')">🔄 الحركات</button>
+      <button data-page="reports" onclick="showPage('reports')">📈 التقارير</button>
+      <button data-page="users" id="nav-users" onclick="showPage('users')">👥 المستخدمون</button>
+    </nav>
+    <button class="btn ghost" onclick="logout()">خروج</button>
+    <button class="btn ghost" onclick="resetData()">🔄 تصفير البيانات</button>
+  </aside>
+
+  <main class="content">
+    <section id="page-dashboard" class="page">
+      <h2>اللوحة الرئيسية</h2>
+      <div id="cards" class="cards"></div>
+      <div class="grid2">
+        <div class="panel"><h3>⚠️ قاربت على النفاد</h3><div id="dash-low"></div></div>
+        <div class="panel"><h3>🕒 أحدث الحركات</h3><div id="dash-recent"></div></div>
+      </div>
+    </section>
+
+    <section id="page-materials" class="page hidden">
+      <h2>📦 المواد</h2>
+      <div class="toolbar">
+        <input id="mat-search" placeholder="بحث: اسم / كود / تصنيف" oninput="renderMaterials()">
+        <select id="mat-filter-w" onchange="renderMaterials()"><option value="">كل المخازن</option></select>
+        <label class="check"><input type="checkbox" id="mat-filter-low" onchange="renderMaterials()"> المنخفضة فقط</label>
+        <button class="btn primary" onclick="openMaterialModal()">+ مادة جديدة</button>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>الكود</th><th>الاسم</th><th>التصنيف</th><th>الوحدة</th><th>الكمية</th><th>الحد الأدنى</th><th>المخزن</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+        <tbody id="materials-body"></tbody>
+      </table></div>
+    </section>
+
+    <section id="page-warehouses" class="page hidden">
+      <h2>🏬 المخازن</h2>
+      <div class="toolbar"><button class="btn primary" onclick="openWarehouseModal()">+ مخزن جديد</button></div>
+      <div id="warehouses-list" class="cards"></div>
+    </section>
+
+    <section id="page-in" class="page hidden">
+      <h2>➕ إدخال مواد</h2>
+      <div class="panel form">
+        <div class="field"><label>المادة</label><select id="in-material"></select></div>
+        <div class="field"><label>الكمية</label><input id="in-qty" type="number" min="0.01" step="0.01"></div>
+        <div class="field"><label>المورد / الجهة الموردة</label><input id="in-party" placeholder="مثال: شركة التوريدات"></div>
+        <div class="field"><label>التاريخ</label><input id="in-date" type="date"></div>
+        <div class="field span2"><label>ملاحظات</label><input id="in-notes" placeholder="رقم الفاتورة..."></div>
+        <button class="btn primary span2" onclick="submitIn()">تسجيل الإدخال</button>
+      </div>
+    </section>
+
+    <section id="page-out" class="page hidden">
+      <h2>➖ إخراج مواد</h2>
+      <div class="panel form">
+        <div class="field"><label>المادة</label><select id="out-material"></select></div>
+        <div class="field"><label>الكمية</label><input id="out-qty" type="number" min="0.01" step="0.01"></div>
+        <div class="field"><label>الجهة / القسم المستفيد</label><input id="out-party" placeholder="مثال: قسم الصيانة"></div>
+        <div class="field"><label>التاريخ</label><input id="out-date" type="date"></div>
+        <div class="field span2"><label>ملاحظات</label><input id="out-notes" placeholder="رقم طلب الصرف..."></div>
+        <button class="btn danger span2" onclick="submitOut()">تسجيل الإخراج</button>
+      </div>
+    </section>
+
+    <section id="page-movements" class="page hidden">
+      <h2>🔄 سجل الحركات</h2>
+      <div class="toolbar">
+        <select id="mv-type" onchange="renderMovements()">
+          <option value="">إدخال + إخراج</option><option value="in">إدخال فقط</option><option value="out">إخراج فقط</option>
+        </select>
+        <input id="mv-search" placeholder="بحث مادة / جهة" oninput="renderMovements()">
+        <input id="mv-from" type="date" onchange="renderMovements()">
+        <input id="mv-to" type="date" onchange="renderMovements()">
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>التاريخ</th><th>النوع</th><th>المادة</th><th>الكمية</th><th>الجهة</th><th>المخزن</th><th>الموظف</th></tr></thead>
+        <tbody id="mv-body"></tbody>
+      </table></div>
+    </section>
+
+    <section id="page-reports" class="page hidden">
+      <h2>📈 التقارير</h2>
+      <div class="grid2">
+        <div class="panel"><h3>النواقص</h3><div id="rep-low"></div>
+          <button class="btn" onclick="printArea('rep-low','تقرير النواقص')">🖨️ طباعة</button></div>
+        <div class="panel"><h3>حركة مادة خلال فترة</h3>
+          <div class="field"><label>المادة</label><select id="rep-material"></select></div>
+          <div class="row">
+            <div class="field"><label>من</label><input id="rep-from" type="date"></div>
+            <div class="field"><label>إلى</label><input id="rep-to" type="date"></div>
+          </div>
+          <button class="btn primary" onclick="movementReport()">عرض</button>
+          <div id="rep-movement"></div>
+        </div>
+      </div>
+      <div class="panel"><h3>جرد المواد الحالية</h3><div id="rep-stock"></div>
+        <button class="btn" onclick="printArea('rep-stock','جرد المواد')">🖨️ طباعة الجرد</button></div>
+    </section>
+
+    <section id="page-users" class="page hidden">
+      <h2>👥 المستخدمون</h2>
+      <div class="panel form">
+        <div class="field"><label>اسم المستخدم</label><input id="u-username"></div>
+        <div class="field"><label>الاسم الكامل</label><input id="u-fullname"></div>
+        <div class="field"><label>كلمة المرور</label><input id="u-password" type="password"></div>
+        <div class="field"><label>الدور</label><select id="u-role"><option value="storekeeper">موظف مخزن</option><option value="admin">مدير النظام</option></select></div>
+        <button class="btn primary span2" onclick="createUser()">إضافة مستخدم</button>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>المستخدم</th><th>الاسم</th><th>الدور</th><th>إجراء</th></tr></thead>
+        <tbody id="users-body"></tbody>
+      </table></div>
+      <p class="muted">المدير: كل الصلاحيات. الموظف: تشغيل يومي بدون حذف أو مستخدمين.</p>
+    </section>
+  </main>
+</div>
+
+<div id="modal" class="modal hidden"><div class="modal-card">
+  <h3 id="modal-title"></h3><div id="modal-body"></div>
+  <div class="row"><button class="btn primary" id="modal-save">حفظ</button><button class="btn ghost" onclick="closeModal()">إلغاء</button></div>
+</div></div>
+<div id="toast" class="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
